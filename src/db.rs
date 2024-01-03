@@ -1,4 +1,4 @@
-use diesel::{PgConnection, RunQueryDsl, QueryDsl, ExpressionMethods};
+use diesel::{PgConnection, RunQueryDsl, QueryDsl, ExpressionMethods, QueryResult};
 use crate::models;
 use crate::schema::{posts, users};
 
@@ -14,11 +14,10 @@ pub fn create_post(conn: &mut PgConnection, post: &models::Post) {
         .expect("Cannot create new post");
 }
 
-pub fn create_user(conn: &mut PgConnection, user: &models::User) {
+pub fn create_user(conn: &mut PgConnection, user: &models::User) -> QueryResult<usize> {
     diesel::insert_into(users::table)
         .values(user)
         .execute(conn)
-        .expect("Cannot create new user");
 }
 
 pub fn get_user(conn: &mut PgConnection, user: &models::LoginUser) -> models::User {

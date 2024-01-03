@@ -1,10 +1,16 @@
-use actix_web::{post, get, HttpResponse, Responder, web, error, HttpRequest};
+use actix_web::{post, get, HttpResponse, Responder, web};
 use diesel::{prelude::*, r2d2::{self, ConnectionManager}};
+use serde::Serialize;
 use crate::{db, models};
 use uuid::Uuid;
 use bcrypt::{verify, hash};
 
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
+
+#[derive(Serialize)]
+struct Error<'a> {
+    message: &'a str
+}
 
 #[get("/posts")]
 pub async fn get_posts(db_pool: web::Data<DbPool>) -> impl Responder {
@@ -41,9 +47,15 @@ pub async fn create_user(db_pool: web::Data<DbPool>, new_user: web::Json<models:
         password: hash(new_user.0.password.to_owned(), 10).unwrap()
     };
 
-    db::create_user(&mut db_conn, &user);
+    let result = db::create_user(&mut db_conn, &user);
 
-    HttpResponse::Created().json(user)
+    if result.is_ok() {
+        HttpResponse::Created().json(user)
+    } else {
+        HttpResponse::BadRequest().json(Error {
+            message: "Cannot create a new user"
+        })
+    }
 }
 
 #[post("/users/login")]

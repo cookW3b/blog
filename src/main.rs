@@ -21,6 +21,8 @@ async fn main() -> std::io::Result<()> {
             .service(hello)
             .service(routes::get_posts)
             .service(routes::create_post)
+            .service(routes::create_user)
+            .service(routes::login_user)
     })
         .bind(("127.0.0.1", 3000))?
         .run()

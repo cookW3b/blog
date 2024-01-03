@@ -12,6 +12,7 @@ diesel::table! {
 diesel::table! {
     users (id) {
         id -> Uuid,
+        #[max_length = 20]
         username -> Varchar,
         name -> Varchar,
         password -> Text,

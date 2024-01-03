@@ -25,13 +25,21 @@ pub struct NewPost {
 pub struct User {
     pub id: Uuid,
     pub username: String,
-    pub password: String
+    pub name: String,
+    pub password: String,
 }
 
 #[derive(Queryable, Selectable, Insertable, Serialize, Deserialize)]
 #[diesel(table_name = crate::schema::users)]
 pub struct NewUser {
-    pub id: Uuid,
+    pub username: String,
+    pub name: String,
+    pub password: String
+}
+
+#[derive(Queryable, Selectable, Insertable, Serialize, Deserialize)]
+#[diesel(table_name = crate::schema::users)]
+pub struct LoginUser {
     pub username: String,
     pub password: String
 }

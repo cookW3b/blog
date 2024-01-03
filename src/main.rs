@@ -5,6 +5,7 @@ use dotenvy::dotenv;
 mod models;
 mod schema;
 mod routes;
+mod db;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -18,6 +19,8 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(pool.clone()))
             .service(hello)
+            .service(routes::get_posts)
+            .service(routes::create_post)
     })
         .bind(("127.0.0.1", 3000))?
         .run()

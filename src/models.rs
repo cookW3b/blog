@@ -17,7 +17,6 @@ pub struct Post {
 pub struct NewPost {
     pub title: String,
     pub body: String,
-    pub user_id: Uuid
 }
 
 #[derive(Queryable, Selectable, Insertable, Serialize, Deserialize)]
@@ -41,5 +40,5 @@ pub struct NewUser {
 #[diesel(table_name = crate::schema::users)]
 pub struct LoginUser {
     pub username: String,
-    pub password: String
+    pub password: String,
 }

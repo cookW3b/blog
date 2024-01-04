@@ -1,6 +1,6 @@
-use actix_web::{post, get, HttpResponse, Responder, web};
+use actix_web::{post, get, HttpResponse, HttpRequest, Responder, web};
 use diesel::{prelude::*, r2d2::{self, ConnectionManager}};
-use serde::Serialize;
+use serde::{Serialize, de};
 use crate::{db, models, jwt};
 use uuid::Uuid;
 use bcrypt::{verify, hash};
@@ -26,13 +26,29 @@ pub async fn get_posts(db_pool: web::Data<DbPool>) -> impl Responder {
 }
 
 #[post("/posts")]
-pub async fn create_post(db_pool: web::Data<DbPool>, new_post: web::Json<models::NewPost>) -> impl Responder {
+pub async fn create_post(req: HttpRequest, db_pool: web::Data<DbPool>, new_post: web::Json<models::NewPost>) -> impl Responder {
     let mut db_conn = db_pool.get().expect("Can't get DB connection from pool");
+
+    let token = req.headers().get("x-access-token");
+
+    if token.is_none() {
+        return HttpResponse::Unauthorized().json(RequestError {
+            message: "Failed to create a new post"
+        });
+    }
+
+    let decoded_data = jwt::decode_jwt(token.unwrap().to_str().unwrap());
+
+    if decoded_data.is_err() {
+        return HttpResponse::BadRequest().json(RequestError {
+            message: "Failed to create a new post"
+        });
+    }
 
     let post = models::Post {
         title: new_post.0.title.to_owned(),
         body: new_post.0.body.to_owned(),
-        user_id: new_post.0.user_id.to_owned(),
+        user_id: decoded_data.unwrap().claims.user_id,
         id: Uuid::new_v4()
     };
 

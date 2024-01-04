@@ -2,12 +2,12 @@ use thiserror::Error;
 
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
-use jsonwebtoken::{encode, decode, Header, Algorithm, Validation, EncodingKey, DecodingKey};
+use jsonwebtoken::{encode, decode, Header, Algorithm, Validation, EncodingKey, DecodingKey, TokenData};
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Claims {
+pub struct Claims {
     exp: usize,
-    user_id: Uuid
+    pub user_id: Uuid
 }
 
 #[derive(Debug, Error)]
@@ -31,8 +31,14 @@ pub fn create_jwt(uid: Uuid) -> Result<String, JWTError> {
         user_id: uid
     };
 
-    let header = Header::new(Algorithm::HS512);
-
-    encode(&header, &claims, &EncodingKey::from_secret(JWT_SECRET))
+    encode(&Header::default(), &claims, &EncodingKey::from_secret(JWT_SECRET))
         .map_err(|_| JWTError::CreationFailed)
+}
+
+pub fn decode_jwt(token: &str) -> Result<TokenData<Claims>, jsonwebtoken::errors::Error> {
+    decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(JWT_SECRET),
+        &Validation::default()
+    )
 }

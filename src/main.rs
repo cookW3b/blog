@@ -6,6 +6,7 @@ mod models;
 mod schema;
 mod routes;
 mod db;
+mod jwt;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

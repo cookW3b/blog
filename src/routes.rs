@@ -1,15 +1,20 @@
 use actix_web::{post, get, HttpResponse, Responder, web};
 use diesel::{prelude::*, r2d2::{self, ConnectionManager}};
 use serde::Serialize;
-use crate::{db, models};
+use crate::{db, models, jwt};
 use uuid::Uuid;
 use bcrypt::{verify, hash};
 
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
 #[derive(Serialize)]
-struct Error<'a> {
+struct RequestError<'a> {
     message: &'a str
+}
+
+#[derive(Serialize)]
+struct LoginResponse<'a> {
+    token: &'a str
 }
 
 #[get("/posts")]
@@ -52,20 +57,32 @@ pub async fn create_user(db_pool: web::Data<DbPool>, new_user: web::Json<models:
     if result.is_ok() {
         HttpResponse::Created().json(user)
     } else {
-        HttpResponse::BadRequest().json(Error {
+        HttpResponse::BadRequest().json(RequestError {
             message: "Cannot create a new user"
         })
     }
 }
 
-#[post("/users/login")]
+
+#[get("/users/login")]
 pub async fn login_user(db_pool: web::Data<DbPool>, user: web::Json<models::LoginUser>) -> impl Responder {
     let mut db_conn = db_pool.get().expect("Can't get DB connection from pool");
 
     let existing_user = db::get_user(&mut db_conn, &user);
 
+    if existing_user.is_err() {
+        return HttpResponse::BadRequest().json(RequestError {
+            message: "User not found"
+        });
+    }
+
+    let existing_user = existing_user.unwrap();
+
     if verify(&user.password, &existing_user.password).expect("Failed to verify password") {
-        HttpResponse::Ok().json(existing_user)
+        let token = jwt::create_jwt(existing_user.id).unwrap();
+        HttpResponse::Ok().json(LoginResponse {
+            token: token.as_str()
+        })
     } else {
         HttpResponse::Unauthorized().body("Invalid crendentials")
     }

@@ -20,10 +20,8 @@ pub fn create_user(conn: &mut PgConnection, user: &models::User) -> QueryResult<
         .execute(conn)
 }
 
-pub fn get_user(conn: &mut PgConnection, user: &models::LoginUser) -> models::User {
-    let result = users::table.filter(users::username.eq(&user.username))
-        .first(conn)
-        .expect("User not found");
-
-    result
+pub fn get_user(conn: &mut PgConnection, user: &models::LoginUser) -> QueryResult<models::User> {
+    use crate::schema::users::dsl::*;
+    users.filter(username.eq(&user.username))
+        .first::<models::User>(conn)
 }

@@ -1,4 +1,4 @@
-use actix_web::{post, get, HttpResponse, HttpRequest, Responder, web};
+use actix_web::{post, get, HttpResponse, HttpRequest, Responder, web, delete};
 use diesel::{prelude::*, r2d2::{self, ConnectionManager}};
 use serde::Serialize;
 use crate::{db, models, jwt};
@@ -8,7 +8,7 @@ use bcrypt::{verify, hash};
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
 #[derive(Serialize)]
-struct RequestError<'a> {
+struct ResponseMessage<'a> {
     message: &'a str
 }
 
@@ -36,7 +36,7 @@ pub async fn create_post(
     let token = req.headers().get("x-access-token");
 
     if token.is_none() {
-        return HttpResponse::Unauthorized().json(RequestError {
+        return HttpResponse::Unauthorized().json(ResponseMessage {
             message: "Failed to create a new post"
         });
     }
@@ -44,7 +44,7 @@ pub async fn create_post(
     let decoded_data = jwt::decode_jwt(token.unwrap().to_str().unwrap());
 
     if decoded_data.is_err() {
-        return HttpResponse::BadRequest().json(RequestError {
+        return HttpResponse::BadRequest().json(ResponseMessage {
             message: "Failed to create a new post"
         });
     }
@@ -80,7 +80,7 @@ pub async fn create_user(
     if result.is_ok() {
         HttpResponse::Created().json(user)
     } else {
-        HttpResponse::BadRequest().json(RequestError {
+        HttpResponse::BadRequest().json(ResponseMessage {
             message: "Cannot create a new user"
         })
     }
@@ -93,10 +93,10 @@ pub async fn login_user(
 ) -> impl Responder {
     let mut db_conn = db_pool.get().expect("Can't get DB connection from pool");
 
-    let existing_user = db::get_user(&mut db_conn, &user);
+    let existing_user = db::login_user(&mut db_conn, &user);
 
     if existing_user.is_err() {
-        return HttpResponse::BadRequest().json(RequestError {
+        return HttpResponse::BadRequest().json(ResponseMessage {
             message: "User not found"
         });
     }
@@ -109,7 +109,7 @@ pub async fn login_user(
             token: token.as_str()
         })
     } else {
-        HttpResponse::Unauthorized().body("Invalid crendentials")
+        HttpResponse::Unauthorized().body("Invalid credentials")
     }
 }
 
@@ -124,7 +124,7 @@ pub async fn create_comment(
     let token = req.headers().get("x-access-token");
 
     if token.is_none() {
-        return HttpResponse::Unauthorized().json(RequestError {
+        return HttpResponse::Unauthorized().json(ResponseMessage {
             message: "Failed to create a new comment"
         });
     }
@@ -132,7 +132,7 @@ pub async fn create_comment(
     let decoded_data = jwt::decode_jwt(token.unwrap().to_str().unwrap());
 
     if decoded_data.is_err() {
-        return HttpResponse::BadRequest().json(RequestError {
+        return HttpResponse::BadRequest().json(ResponseMessage {
             message: "Failed to create a new comment"
         });
     }
@@ -147,8 +147,116 @@ pub async fn create_comment(
     if let Ok(_) = db::create_comment(&mut db_conn, &comment) {
         return HttpResponse::Created().json(comment)
     } else {
-        return HttpResponse::BadRequest().json(RequestError {
+        return HttpResponse::BadRequest().json(ResponseMessage {
             message: "Cannot create a new comment"
         })
     }
+}
+
+#[post["/comments/update"]]
+pub async fn update_comment(
+    req: HttpRequest,
+    db_pool: web::Data<DbPool>,
+    update_comment: web::Json<models::UpdateComment>
+) -> impl Responder {
+    let mut db_conn = db_pool.get().expect("Can't get DB connection from pool");
+
+    let token = req.headers().get("x-access-token");
+
+    if token.is_none() {
+        return HttpResponse::Unauthorized().json(ResponseMessage {
+            message: "Failed to update comment"
+        });
+    }
+
+    let decoded_data = jwt::decode_jwt(token.unwrap().to_str().unwrap());
+
+    if decoded_data.is_err() {
+        return HttpResponse::BadRequest().json(ResponseMessage {
+            message: "Failed to update comment"
+        });
+    }
+
+    let comment = db::get_comment(&mut db_conn, update_comment.id);
+
+    if comment.is_err() {
+        return HttpResponse::NotFound().json(ResponseMessage {
+            message: "Comment not found"
+        })
+    }
+
+    let result = db::update_comment(&mut db_conn, &update_comment);
+
+    if result.is_err() {
+        return HttpResponse::BadRequest().json(ResponseMessage {
+            message: "Failed to update comment"
+        })
+    }
+
+    HttpResponse::Ok().json(comment.unwrap())
+}
+
+#[get("/posts/{post_id}/comments")]
+pub async fn get_posts_comments(
+    db_pool: web::Data<DbPool>,
+    post_id: web::Path<Uuid>
+) -> impl Responder {
+    let mut db_conn = db_pool.get().expect("Can't get DB connection from pool");
+
+    let result = db::get_post_comments(&mut db_conn, *post_id);
+
+    if result.is_err() {
+        return HttpResponse::BadRequest().json(ResponseMessage {
+            message: "Cannot get a post comments"
+        });
+    }
+
+    HttpResponse::Ok().json(result.unwrap())
+}
+
+#[delete("/comments/{comment_id}")]
+pub async fn delete_comment(
+    req: HttpRequest,
+    db_pool: web::Data<DbPool>,
+    comment_id: web::Data<Uuid>
+) -> impl Responder {
+    let mut db_conn = db_pool.get().expect("Can't get DB connection from pool");
+
+    let token = req.headers().get("x-access-token");
+
+    if token.is_none() {
+        return HttpResponse::Unauthorized().json(ResponseMessage {
+            message: "Failed to delete comment"
+        });
+    }
+
+    let decoded_data = jwt::decode_jwt(token.unwrap().to_str().unwrap());
+
+    if decoded_data.is_err() {
+        return HttpResponse::BadRequest().json(ResponseMessage {
+            message: "Failed to delete comment"
+        });
+    }
+
+    let comment = db::get_comment(&mut db_conn, **comment_id);
+
+    if comment.is_err() {
+        return HttpResponse::BadRequest().json(ResponseMessage {
+            message: "Failed to delete comment"
+        });
+    }
+
+    if comment.as_ref().unwrap().user_id != decoded_data.unwrap().claims.user_id {
+        return HttpResponse::BadRequest().json(ResponseMessage {
+            message: "Failed to delete comment"
+        });
+    }
+
+    if let Err(_) = db::delete_comment(&mut db_conn, **comment_id) {
+        return HttpResponse::BadRequest().json(ResponseMessage {
+            message: "Failed to delete comment"
+        });
+    }
+
+    HttpResponse::Ok().json(comment.unwrap())
 }

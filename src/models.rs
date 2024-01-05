@@ -36,6 +36,15 @@ pub struct NewComment {
     pub body: String
 }
 
+#[derive(Queryable, Selectable, Serialize, Deserialize, Insertable)]
+#[diesel(table_name = comments)]
+pub struct UpdateComment {
+    pub post_id: Uuid,
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub body: String
+}
+
 #[derive(Queryable, Selectable, Insertable, Serialize, Deserialize)]
 #[diesel(table_name = users)]
 pub struct User {

@@ -1,6 +1,9 @@
 # BLOG APP
 
 - [ ] Implement "posts" request (create, remove, update)
-- [ ] Implement user auth (login/singup)
+- [x] Implement user auth (login/singup)
 - [ ] Make text of post a markdown
-- [ ] Return error message
+
+## Comments
+- [ ] Delete/Modify ability
+- [ ] Like/Dislike

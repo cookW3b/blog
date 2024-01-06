@@ -61,5 +61,4 @@ pub fn delete_comment(
     use crate::schema::comments::dsl::*;
     diesel::delete(comments.filter(id.eq(comment_id)))
         .execute(conn)
-
 }

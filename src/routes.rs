@@ -197,7 +197,7 @@ pub async fn update_comment(
 }
 
 #[get("/posts/{post_id}/comments")]
-pub async fn get_posts_comments(
+pub async fn get_post_comments(
     db_pool: web::Data<DbPool>,
     post_id: web::Path<Uuid>
 ) -> impl Responder {
